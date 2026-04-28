@@ -24,7 +24,8 @@ Commands:
   2.3.4  0x15  BLE Connection Heartbeat
   2.3.5  0x16  Abort + Disconnect
 """
-
+import random
+import time
 import asyncio
 import struct
 import threading
@@ -484,7 +485,56 @@ async def run_raw(client, axis: int):
     elif not _ble_control["disconnect_requested"]:
         await cmd_abort(client)
 
+# ==========================================================
+# DUMMY DATA GENERATOR
+# ==========================================================
+def generate_dummy_data():
+    while True:
+        t = datetime.now().strftime("%H:%M:%S")
 
+        with _lock:
+            live["ble_status"] = "Demo Mode Connected"
+
+            live["time"].append(t)
+            live["amb_temp"].append(random.randint(24, 36))
+            live["surf_temp"].append(random.randint(30, 50))
+            live["humidity"].append(random.randint(40, 90))
+            live["pressure"].append(random.randint(980, 1035))
+
+            live["vib_x_vel"].append(round(random.uniform(0.2,2.0),2))
+            live["vib_y_vel"].append(round(random.uniform(0.2,2.0),2))
+            live["vib_z_vel"].append(round(random.uniform(0.2,2.0),2))
+
+            live["vib_x_acc"].append(round(random.uniform(0.1,1.0),2))
+            live["vib_y_acc"].append(round(random.uniform(0.1,1.0),2))
+            live["vib_z_acc"].append(round(random.uniform(0.1,1.0),2))
+
+            live["acoustics"].append(random.randint(50,95))
+            live["battery"].append(random.randint(60,100))
+            live["rpm"].append(random.randint(800,1800))
+
+            live["kurt_x"]=round(random.uniform(2,5),2)
+            live["kurt_y"]=round(random.uniform(2,5),2)
+            live["kurt_z"]=round(random.uniform(2,5),2)
+
+            live["crest_x"]=round(random.uniform(1,3),2)
+            live["crest_y"]=round(random.uniform(1,3),2)
+            live["crest_z"]=round(random.uniform(1,3),2)
+
+            live["skew_x"]=round(random.uniform(-1,1),2)
+            live["skew_y"]=round(random.uniform(-1,1),2)
+            live["skew_z"]=round(random.uniform(-1,1),2)
+
+            live["vib_x_freq"]=random.randint(10,80)
+            live["vib_y_freq"]=random.randint(10,80)
+            live["vib_z_freq"]=random.randint(10,80)
+
+            live["audio_freq"]=random.randint(200,1000)
+
+            live["last_update"]=t
+            live["last_cmd"]="Dummy Data"
+
+        time.sleep(3)
 # ═══════════════════════════════════════════════════════════
 # BLE LOOP
 # ═══════════════════════════════════════════════════════════
@@ -558,7 +608,7 @@ async def ble_loop():
 
                     cycle += 1
                     await asyncio.sleep(2)
-
+                    
         except Exception as e:
             with _lock:
                 live["ble_status"] = "Disconnected"
@@ -567,8 +617,10 @@ async def ble_loop():
                 _ble_control["connect_requested"]    = False
                 _ble_control["disconnect_requested"] = False
             else:
-                print(f"BLE error: {e} — retrying in 5s...")
-                await asyncio.sleep(5)
+                print(f"BLE error: {e}")
+                print("Starting Dummy Data Mode...")
+                threading.Thread(target=generate_dummy_data, daemon=True).start()
+                return
 
 
 def run_ble():
@@ -580,7 +632,7 @@ def _shutdown(sig, frame):
     sys.exit(0)
 
 signal.signal(signal.SIGINT, _shutdown)
-threading.Thread(target=run_ble, daemon=True).start()
+threading.Thread(target=generate_dummy_data, daemon=True).start()
 
 
 # ═══════════════════════════════════════════════════════════
